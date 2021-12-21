@@ -1,0 +1,98 @@
+HW 2.4 problem
+function [v1,v2,output,b1,b2,b3] = OutputV(u,inputData,threshold1,threshold2,threshold3,w1,w2,w3)
+    
+    b1 = w1*inputData(:,u) - threshold1;
+    v1 = tanh(b1);
+    b2 = w2*v1 - threshold2;
+    v2 = tanh(b2);
+    b3 = w3*v2 - threshold3;
+    output = tanh(b3);
+
+end
+
+function c = CFunction(validationOutputV,validationT)
+    c = 0;
+    for i = 1:5000
+        c = c + abs(sign(validationOutputV(i))-validationT(i))/10000;
+    end  
+end
+
+function validationOutputV = ValidationOutputV(validationInput,threshold1,threshold2,threshold3,w1,w2,w3)
+b1 = w1*validationInput - threshold1;
+v1 = tanh(b1);
+b2 = w2*v1 - threshold2;
+v2 = tanh(b2);
+b3 = w3*v2 - threshold3;
+validationOutputV = tanh(b3);
+end
+
+main.m
+
+load inputData
+load t
+load validationInput
+load validationT
+w1 = 0.4*rand(5,2)-0.2;
+w2 = 0.4*rand(5,5)-0.2;
+w3 = 0.4*rand(1,5)-0.2;
+threshold1 = zeros(5,1);
+threshold2 = zeros(5,1);
+threshold3 = 0;
+steplength = 0.01;
+inputData = inputData';
+validationInput = validationInput';
+
+
+for i = 1:100
+    l = randperm(10000);   
+    for k = 1:10000
+        u = l(k);
+        [v1,v2,output,b1,b2,b3] = OutputV(u,inputData,threshold1,threshold2,threshold3,w1,w2,w3);    
+        dthreshold1 = zeros(5,1);
+        dthreshold2 = zeros(5,1);
+        dthreshold3 = 0;    
+        dw1 = zeros(5,2);
+        dw2 = zeros(5,5);
+        dw3 = zeros(1,5);
+        b3Temp = (sech(b3)).^2;
+        b2Temp = (sech(b2)).^2;
+        b1Temp = (sech(b1)).^2;  
+       
+        for j = 1:5
+            dw3(j) = dw3(j) + (output-t(u))*b3Temp*v2(j); 
+        end
+        for m = 1:5
+            for n = 1:5 
+                dw2(m,n) = dw2(m,n) + (output-t(u))*b3Temp*w3(m)*b2Temp(m)*v1(n);
+            end
+        end
+        for j = 1:5
+            for m = 1:5
+                for n = 1:2
+                    dw1(m,n) = dw1(m,n) + (output-t(u))*b3Temp*w3(j)*b2Temp(j)*w2(j,m)*b1Temp(m)*inputData(n); 
+                end
+            end
+        end        
+        dthreshold3 = dthreshold3 - (output-t(u))*b3Temp;  
+        for m = 1:5
+            dthreshold2(m) = dthreshold2(m) - (output-t(u))*b3Temp*w3(m)*b2Temp(m);    
+        end
+        for j = 1:5
+            for m = 1:5
+                dthreshold1(m) = dthreshold1(m) - (output-t(u))*b3Temp*w3(j)*b2Temp(j)*w2(j,m)*b1Temp(m);
+            end
+        end
+
+        w3 = w3 + steplength*dw3;
+        w2 = w2 + steplength*dw2;
+        w1 = w1 + steplength*dw1;
+
+        threshold3 = threshold3 - steplength*dthreshold3;
+        threshold2 = threshold2 - steplength*dthreshold2;
+        threshold1 = threshold1 - steplength*dthreshold1;         
+    end
+    validationOutputV = ValidationOutputV(validationInput,threshold1,threshold2,threshold3,w1,w2,w3);
+    C = CFunction(validationOutputV,validationT);
+    disp(C);
+
+end
